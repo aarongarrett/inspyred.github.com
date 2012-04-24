@@ -919,6 +919,11 @@ evaluated by the current evolutionary computation before being inserted
 into the population. This can be important when different populations 
 use different evaluation functions and you need to be able to compare 
 &#8220;apples with apples,&#8221; so to speak.</p>
+<p>The migration takes the current individual <em>I</em> out of the queue, if
+one exists. It then randomly chooses an individual <em>E</em> from the population
+to insert into the queue. Finally, if <em>I</em> exists, it replaces <em>E</em> in the
+population (re-evaluating fitness if necessary). Otherwise, <em>E</em> remains in 
+the population and also exists in the queue as a migrant.</p>
 <p>Optional keyword arguments in args:</p>
 <ul class="simple">
 <li><em>evaluate_migrant</em> &#8211; should new migrants be evaluated before 
@@ -1056,8 +1061,10 @@ the average fitness, and a red line representing the median fitness.
 It modifies the keyword arguments variable &#8216;args&#8217; by including an
 entry called &#8216;plot_data&#8217;.</p>
 <p>If this observer is used, the calling script should also import
-the pylab library and should end the script with</p>
-<p>pylab.show()</p>
+the pylab library and should end the script with:</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="n">pylab</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
 <p>Otherwise, the program may generate a runtime error.</p>
 <div class="admonition note">
 <p class="first admonition-title">Note</p>

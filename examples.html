@@ -1066,6 +1066,61 @@ in the example below.
 </div>
 </div>
 </div>
+<div class="section" id="island-models">
+<h3>Island Models<a class="headerlink" href="#island-models" title="Permalink to this headline">¶</a></h3>
+<p>Along with parallel evaluation of the fitness, it is also possible to create
+different populations that evolve independently but are capable of sharing
+solutions among themselves. Such approaches are known as &#8220;island models&#8221; and
+can be accomplished within inspyred by making use of the migrator callback.
+The following example illustrates a very simple two-island model using the
+<tt class="docutils literal"><span class="pre">inspyred.ec.migrators.MultiprocessingMigrator</span></tt> migrator. Remember that
+custom migrators can easily be constructed for more specific needs.
+[<a class="reference download internal" href="_downloads/islands_example.py"><tt class="xref download docutils literal"><span class="pre">download</span></tt></a>]</p>
+<div class="highlight-python"><div class="highlight"><pre><span class="kn">import</span> <span class="nn">random</span>
+<span class="kn">import</span> <span class="nn">time</span>
+<span class="kn">import</span> <span class="nn">multiprocessing</span>
+<span class="kn">import</span> <span class="nn">inspyred</span>
+
+<span class="k">def</span> <span class="nf">create_island</span><span class="p">(</span><span class="n">rand_seed</span><span class="p">,</span> <span class="n">island_number</span><span class="p">,</span> <span class="n">problem</span><span class="p">,</span> <span class="n">mp_migrator</span><span class="p">):</span>
+    <span class="n">evals</span> <span class="o">=</span> <span class="mi">200</span>
+    <span class="n">psize</span> <span class="o">=</span> <span class="mi">20</span>
+    <span class="n">rand</span> <span class="o">=</span> <span class="n">random</span><span class="o">.</span><span class="n">Random</span><span class="p">()</span>
+    <span class="n">rand</span><span class="o">.</span><span class="n">seed</span><span class="p">(</span><span class="n">rand_seed</span><span class="p">)</span>
+    <span class="n">ec</span> <span class="o">=</span> <span class="n">inspyred</span><span class="o">.</span><span class="n">ec</span><span class="o">.</span><span class="n">EvolutionaryComputation</span><span class="p">(</span><span class="n">rand</span><span class="p">)</span>
+    <span class="n">ec</span><span class="o">.</span><span class="n">observer</span> <span class="o">=</span> <span class="p">[</span><span class="n">inspyred</span><span class="o">.</span><span class="n">ec</span><span class="o">.</span><span class="n">observers</span><span class="o">.</span><span class="n">stats_observer</span><span class="p">,</span> <span class="n">inspyred</span><span class="o">.</span><span class="n">ec</span><span class="o">.</span><span class="n">observers</span><span class="o">.</span><span class="n">file_observer</span><span class="p">]</span>
+    <span class="n">ec</span><span class="o">.</span><span class="n">terminator</span> <span class="o">=</span> <span class="n">inspyred</span><span class="o">.</span><span class="n">ec</span><span class="o">.</span><span class="n">terminators</span><span class="o">.</span><span class="n">evaluation_termination</span>
+    <span class="n">ec</span><span class="o">.</span><span class="n">selector</span> <span class="o">=</span> <span class="n">inspyred</span><span class="o">.</span><span class="n">ec</span><span class="o">.</span><span class="n">selectors</span><span class="o">.</span><span class="n">tournament_selection</span>
+    <span class="n">ec</span><span class="o">.</span><span class="n">replacer</span> <span class="o">=</span> <span class="n">inspyred</span><span class="o">.</span><span class="n">ec</span><span class="o">.</span><span class="n">replacers</span><span class="o">.</span><span class="n">generational_replacement</span>
+    <span class="n">ec</span><span class="o">.</span><span class="n">variator</span> <span class="o">=</span> <span class="p">[</span><span class="n">inspyred</span><span class="o">.</span><span class="n">ec</span><span class="o">.</span><span class="n">variators</span><span class="o">.</span><span class="n">blend_crossover</span><span class="p">,</span> <span class="n">inspyred</span><span class="o">.</span><span class="n">ec</span><span class="o">.</span><span class="n">variators</span><span class="o">.</span><span class="n">gaussian_mutation</span><span class="p">]</span>
+    <span class="n">ec</span><span class="o">.</span><span class="n">migrator</span> <span class="o">=</span> <span class="n">mp_migrator</span>
+    <span class="n">final_pop</span> <span class="o">=</span> <span class="n">ec</span><span class="o">.</span><span class="n">evolve</span><span class="p">(</span><span class="n">generator</span><span class="o">=</span><span class="n">problem</span><span class="o">.</span><span class="n">generator</span><span class="p">,</span>
+                          <span class="n">evaluator</span><span class="o">=</span><span class="n">problem</span><span class="o">.</span><span class="n">evaluator</span><span class="p">,</span> 
+                          <span class="n">bounder</span><span class="o">=</span><span class="n">problem</span><span class="o">.</span><span class="n">bounder</span><span class="p">,</span>
+                          <span class="n">maximize</span><span class="o">=</span><span class="n">problem</span><span class="o">.</span><span class="n">maximize</span><span class="p">,</span>
+                          <span class="n">statistics_file</span><span class="o">=</span><span class="nb">open</span><span class="p">(</span><span class="s">&quot;stats_</span><span class="si">%d</span><span class="s">.csv&quot;</span> <span class="o">%</span> <span class="n">island_number</span><span class="p">,</span> <span class="s">&quot;w&quot;</span><span class="p">),</span>
+                          <span class="n">individuals_file</span><span class="o">=</span><span class="nb">open</span><span class="p">(</span><span class="s">&quot;inds_</span><span class="si">%d</span><span class="s">.csv&quot;</span> <span class="o">%</span> <span class="n">island_number</span><span class="p">,</span> <span class="s">&quot;w&quot;</span><span class="p">),</span>
+                          <span class="n">max_evaluations</span><span class="o">=</span><span class="n">evals</span><span class="p">,</span>
+                          <span class="n">num_elites</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+                          <span class="n">pop_size</span><span class="o">=</span><span class="n">psize</span><span class="p">,</span>
+                          <span class="n">num_selected</span><span class="o">=</span><span class="n">psize</span><span class="p">,</span>
+                          <span class="n">evaluate_migrant</span><span class="o">=</span><span class="bp">False</span><span class="p">)</span>
+    
+
+<span class="k">if</span> <span class="n">__name__</span> <span class="o">==</span> <span class="s">&quot;__main__&quot;</span><span class="p">:</span>  
+    <span class="n">cpus</span> <span class="o">=</span> <span class="mi">2</span>
+    <span class="n">problem</span> <span class="o">=</span> <span class="n">inspyred</span><span class="o">.</span><span class="n">benchmarks</span><span class="o">.</span><span class="n">Rastrigin</span><span class="p">(</span><span class="mi">2</span><span class="p">)</span>
+    <span class="n">mp_migrator</span> <span class="o">=</span> <span class="n">inspyred</span><span class="o">.</span><span class="n">ec</span><span class="o">.</span><span class="n">migrators</span><span class="o">.</span><span class="n">MultiprocessingMigrator</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+    <span class="n">rand_seed</span> <span class="o">=</span> <span class="nb">int</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">time</span><span class="p">())</span>
+    <span class="n">jobs</span> <span class="o">=</span> <span class="p">[]</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">cpus</span><span class="p">):</span>
+        <span class="n">p</span> <span class="o">=</span> <span class="n">multiprocessing</span><span class="o">.</span><span class="n">Process</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">create_island</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">rand_seed</span> <span class="o">+</span> <span class="n">i</span><span class="p">,</span> <span class="n">i</span><span class="p">,</span> <span class="n">problem</span><span class="p">,</span> <span class="n">mp_migrator</span><span class="p">))</span>
+        <span class="n">p</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+        <span class="n">jobs</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">p</span><span class="p">)</span>
+    <span class="k">for</span> <span class="n">j</span> <span class="ow">in</span> <span class="n">jobs</span><span class="p">:</span>
+        <span class="n">j</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+</pre></div>
+</div>
+</div>
 <div class="section" id="replacement-via-niching">
 <h3>Replacement via Niching<a class="headerlink" href="#replacement-via-niching" title="Permalink to this headline">¶</a></h3>
 <p>An example of a not-quite-standard replacer is the <tt class="docutils literal"><span class="pre">crowding_replacement</span></tt> which
@@ -1181,6 +1236,7 @@ ensure that all maxima are found.
 <li><a class="reference internal" href="#id1">Parallel Python</a></li>
 </ul>
 </li>
+<li><a class="reference internal" href="#island-models">Island Models</a></li>
 <li><a class="reference internal" href="#replacement-via-niching">Replacement via Niching</a></li>
 </ul>
 </li>
